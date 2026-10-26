@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EdgeGuard | TinyML Predictive Machine Health Monitoring</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <!-- ================================================================== -->
+    <!-- TOP INDUSTRIAL TELEMETRY HEADER                                    -->
+    <!-- ================================================================== -->
+    <header class="top-header">
+        <div class="brand-group">
+            <div class="brand-icon-wrapper">
+                <!-- Industrial Shield & Pulse Icon -->
+                <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    <path d="M8 12h2l1.5-3 2.5 6 1.5-3h2.5"/>
+                </svg>
+            </div>
+            <div class="brand-text">
+                <div class="brand-title-row">
+                    <h1 class="brand-title">EdgeGuard</h1>
+                    <span class="project-tag">TinyML Core</span>
+                </div>
+                <p class="brand-subtitle">TinyML-Based Predictive Machine Health Monitoring &amp; Anomaly Detection</p>
+            </div>
+        </div>
+
+        <div class="telemetry-bar">
+            <!-- Hardware Port & Connection Status Badge -->
+            <div class="connection-pill" id="connectionBadge">
+                <span class="status-indicator-dot disconnected" id="connectionDot"></span>
+                <div class="connection-meta">
+                    <span class="connection-label" id="connectionStatusText">ESP32 Disconnected</span>
+                    <span class="connection-sub" id="connectionDetailText">Searching COM3 @ 115200 baud...</span>
+                </div>
+            </div>
+
+            <!-- Real-time Clock & System Status -->
+            <div class="clock-badge">
+                <span class="clock-label">SYSTEM CLOCK</span>
+                <span class="clock-value" id="systemClock">--:--:--</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================================================================== -->
+    <!-- MAIN DASHBOARD CONTAINER                                           -->
+    <!-- ================================================================== -->
+    <main class="dashboard-container">
+
+        <!-- 1. MAIN MACHINE STATUS HERO CARD -->
+        <section class="machine-status-hero is-waiting" id="heroStatusCard">
+            <div class="hero-status-left">
+                <div class="status-icon-ring" id="heroStatusRing">
+                    <!-- Icon switches dynamically: checkmark / warning / clock -->
+                    <span class="hero-emoji" id="heroEmoji">⏳</span>
+                </div>
+                <div class="hero-status-details">
+                    <span class="hero-eyebrow">PRIMARY MACHINE STATUS</span>
+                    <h2 class="hero-status-title" id="machineStatusText">WAITING FOR SENSOR STREAM</h2>
+                    <p class="hero-status-description" id="machineStatusDesc">
+                        Initializing sliding sample window. Ensure ESP32 is powered and connected to COM3.
+                    </p>
+                </div>
+            </div>
+
+            <div class="hero-status-right">
+                <div class="model-badge-box">
+                    <span class="meta-label">ML CLASSIFIER</span>
+                    <span class="meta-value">Decision Tree</span>
+                </div>
+                <div class="model-badge-box">
+                    <span class="meta-label">CONFIDENCE</span>
+                    <span class="meta-value" id="heroConfidence">--</span>
+                </div>
+                <div class="model-badge-box">
+                    <span class="meta-label">WINDOW</span>
+                    <span class="meta-value" id="heroWindow">0 / 10</span>
+                </div>
+            </div>
+
+            <!-- Dynamic Alert Bar -->
+            <div class="alarm-alert-banner" id="alarmBanner">
+                <div class="alarm-icon-box">
+                    <svg class="alarm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                </div>
+                <div class="alarm-content">
+                    <span class="alarm-title" id="alarmTitle">Awaiting Serial Telemetry</span>
+                    <span class="alarm-message" id="alarmMessage">No packets parsed yet. Connecting to ESP32 on COM3...</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. SENSOR TELEMETRY & ML GRID -->
+        <div class="telemetry-grid">
+
+            <!-- Card A: Live Acceleration (MPU6050) -->
+            <section class="dash-card accel-card">
+                <div class="card-header">
+                    <div class="card-title-group">
+                        <h3 class="card-title">Acceleration Telemetry</h3>
+                        <span class="card-subtitle">MPU6050 Tri-Axis Accelerometer (Raw LSB)</span>
+                    </div>
+                    <span class="sensor-badge">I2C: 0x68</span>
+                </div>
+
+                <div class="sensor-readout-row">
+                    <div class="axis-box axis-x">
+                        <span class="axis-name">AX</span>
+                        <div class="axis-value-row">
+                            <span class="axis-val" id="valAx">--</span>
+                            <span class="axis-unit">LSB</span>
+                        </div>
+                    </div>
+
+                    <div class="axis-box axis-y">
+                        <span class="axis-name">AY</span>
+                        <div class="axis-value-row">
+                            <span class="axis-val" id="valAy">--</span>
+                            <span class="axis-unit">LSB</span>
+                        </div>
+                    </div>
+
+                    <div class="axis-box axis-z">
+                        <span class="axis-name">AZ</span>
+                        <div class="axis-value-row">
+                            <span class="axis-val" id="valAz">--</span>
+                            <span class="axis-unit">LSB</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="vector-magnitude-row">
+                    <div class="magnitude-info">
+                        <span class="mag-label">ACCEL VECTOR MAGNITUDE |A|:</span>
+                        <span class="mag-value" id="valAccelMag">--</span>
+                        <span class="mag-unit">LSB</span>
+                    </div>
+                    <div class="mag-bar-track">
+                        <div class="mag-bar-fill" id="magAccelBar" style="width: 0%;"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Card B: Live Gyroscope (MPU6050) -->
+            <section class="dash-card gyro-card">
+                <div class="card-header">
+                    <div class="card-title-group">
+                        <h3 class="card-title">Angular Velocity Telemetry</h3>
+                        <span class="card-subtitle">MPU6050 Tri-Axis Gyroscope (Raw LSB)</span>
+                    </div>
+                    <span class="sensor-badge">±250°/s</span>
+                </div>
+
+                <div class="sensor-readout-row">
+                    <div class="axis-box axis-gx">
+                        <span class="axis-name">GX</span>
+                        <div class="axis-value-row">
+                            <span class="axis-val" id="valGx">--</span>
+                            <span class="axis-unit">LSB</span>
+                        </div>
+                    </div>
+
+                    <div class="axis-box axis-gy">
+                        <span class="axis-name">GY</span>
+                        <div class="axis-value-row">
+                            <span class="axis-val" id="valGy">--</span>
+                            <span class="axis-unit">LSB</span>
+                        </div>
+                    </div>
+
+                    <div class="axis-box axis-gz">
+                        <span class="axis-name">GZ</span>
+                        <div class="axis-value-row">
+                            <span class="axis-val" id="valGz">--</span>
+                            <span class="axis-unit">LSB</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="vector-magnitude-row">
+                    <div class="magnitude-info">
+                        <span class="mag-label">GYRO VECTOR MAGNITUDE |ω|:</span>
+                        <span class="mag-value" id="valGyroMag">--</span>
+                        <span class="mag-unit">LSB</span>
+                    </div>
+                    <div class="mag-bar-track">
+                        <div class="mag-bar-fill gyro-fill" id="magGyroBar" style="width: 0%;"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Card C: TinyML Model Prediction -->
+            <section class="dash-card ml-card">
+                <div class="card-header">
+                    <div class="card-title-group">
+                        <h3 class="card-title">TinyML Edge Inference</h3>
+                        <span class="card-subtitle">Scikit-Learn Pre-Trained Engine</span>
+                    </div>
+                    <span class="sensor-badge ml-tag">Real-Time</span>
+                </div>
+
+                <div class="ml-status-box">
+                    <span class="ml-eyebrow">PREDICTED CLASS</span>
+                    <div class="ml-class-display" id="valMlClass">--</div>
+                    <div class="ml-meta-sub" id="valMlModelName">Decision Tree Classifier</div>
+                </div>
+
+                <div class="inference-metrics-row">
+                    <div class="metric-item">
+                        <span class="metric-title">Confidence</span>
+                        <span class="metric-val" id="valMlConfidence">--</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-title">Sliding Window</span>
+                        <span class="metric-val" id="valMlWindow">10 Samples</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-title">Features</span>
+                        <span class="metric-val">24 Parameters</span>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+
+        <!-- 3. LIVE VIBRATION VISUALIZATION (REAL-TIME OSCILLOSCOPE) -->
+        <section class="dash-card vibration-chart-card">
+            <div class="card-header chart-header-row">
+                <div class="card-title-group">
+                    <h3 class="card-title">Real-Time Vibration Oscilloscope</h3>
+                    <span class="card-subtitle">Continuous Tri-Axial Acceleration Stream (AX / AY / AZ)</span>
+                </div>
+
+                <!-- Live Waveform Legend -->
+                <div class="chart-legend-box">
+                    <div class="legend-item legend-ax">
+                        <span class="legend-dot dot-ax"></span>
+                        <span class="legend-label">AX:</span>
+                        <span class="legend-value" id="legendAx">--</span>
+                    </div>
+                    <div class="legend-item legend-ay">
+                        <span class="legend-dot dot-ay"></span>
+                        <span class="legend-label">AY:</span>
+                        <span class="legend-value" id="legendAy">--</span>
+                    </div>
+                    <div class="legend-item legend-az">
+                        <span class="legend-dot dot-az"></span>
+                        <span class="legend-label">AZ:</span>
+                        <span class="legend-value" id="legendAz">--</span>
+                    </div>
+                    <div class="chart-tag">Window: 40 Readings</div>
+                </div>
+            </div>
+
+            <div class="canvas-container">
+                <canvas id="vibrationCanvas"></canvas>
+            </div>
+        </section>
+
+        <!-- 4. RECENT PREDICTIONS & EMBEDDED SYSTEM INFO (2-COLUMN SECTION) -->
+        <div class="bottom-dual-grid">
+
+            <!-- Card D: Recent Predictions Table (Responsive modern-web-guidance) -->
+            <section class="dash-card predictions-history-card">
+                <div class="card-header">
+                    <div class="card-title-group">
+                        <h3 class="card-title">Recent Inference Log</h3>
+                        <span class="card-subtitle">Rolling history of latest 10 TinyML predictions</span>
+                    </div>
+                    <span class="sensor-badge">Queue: 10</span>
+                </div>
+
+                <div class="table-wrapper" tabindex="0" role="region" aria-label="Recent TinyML Predictions Log">
+                    <table class="history-table" id="predictionsTable">
+                        <thead>
+                            <tr>
+                                <th scope="col" style="width: 10%;">#</th>
+                                <th scope="col" style="width: 25%;">Timestamp</th>
+                                <th scope="col" style="width: 35%;">Machine Status</th>
+                                <th scope="col" style="width: 30%;">Confidence</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody">
+                            <tr>
+                                <td colspan="4" class="table-empty-cell">Waiting for ESP32 telemetry stream...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Card E: Embedded System Architecture & Hardware Specs -->
+            <section class="dash-card system-info-card">
+                <div class="card-header">
+                    <div class="card-title-group">
+                        <h3 class="card-title">Embedded System Architecture</h3>
+                        <span class="card-subtitle">Hardware Interfacing &amp; ML Specification</span>
+                    </div>
+                    <span class="sensor-badge">DevKit V1</span>
+                </div>
+
+                <div class="specs-grid">
+                    <div class="spec-tile">
+                        <span class="spec-label">MICROCONTROLLER</span>
+                        <strong class="spec-val">ESP32 DevKit V1</strong>
+                        <span class="spec-desc">Dual-Core Xtensa LX6 @ 240MHz</span>
+                    </div>
+
+                    <div class="spec-tile">
+                        <span class="spec-label">INERTIAL SENSOR</span>
+                        <strong class="spec-val">MPU6050 (6-DOF)</strong>
+                        <span class="spec-desc">I2C: SDA=GPIO 21 | SCL=GPIO 22</span>
+                    </div>
+
+                    <div class="spec-tile">
+                        <span class="spec-label">COMMUNICATION LINK</span>
+                        <strong class="spec-val">USB UART Serial</strong>
+                        <span class="spec-desc">COM3 @ 115200 Baud (CSV Stream)</span>
+                    </div>
+
+                    <div class="spec-tile">
+                        <span class="spec-label">TINYML MODEL</span>
+                        <strong class="spec-val">Decision Tree (depth=3)</strong>
+                        <span class="spec-desc">LabelEncoder ['anomaly', 'normal']</span>
+                    </div>
+
+                    <div class="spec-tile">
+                        <span class="spec-label">FEATURE PIPELINE</span>
+                        <strong class="spec-val">24 Statistical Features</strong>
+                        <span class="spec-desc">Mean, Std, RMS, Peak (10 samples)</span>
+                    </div>
+
+                    <div class="spec-tile">
+                        <span class="spec-label">ALARM ACTUATORS</span>
+                        <strong class="spec-val">LED (23) &amp; Buzzer (25)</strong>
+                        <span class="spec-desc">Direct GPIO digital warning alert</span>
+                    </div>
+
+                    <div class="spec-tile">
+                        <span class="spec-label">MOTOR DRIVER</span>
+                        <strong class="spec-val">L298N Dual H-Bridge</strong>
+                        <span class="spec-desc">IN1=GPIO 18 | IN2=GPIO 19</span>
+                    </div>
+
+                    <div class="spec-tile">
+                        <span class="spec-label">SAFETY ISOLATION</span>
+                        <strong class="spec-val">Isolated Power Rail</strong>
+                        <span class="spec-desc">DC Motor supply isolated from logic</span>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+
+    </main>
+
+    <!-- ================================================================== -->
+    <!-- FOOTER                                                             -->
+    <!-- ================================================================== -->
+    <footer class="bottom-footer">
+        <div class="footer-inner">
+            <span class="footer-title">EdgeGuard TinyML Health Monitoring System</span>
+            <span class="footer-divider">•</span>
+            <span class="footer-desc">Embedded System Architecture Project</span>
+            <span class="footer-divider">•</span>
+            <span class="footer-status">Live Telemetry Pipeline: ESP32 → MPU6050 → USB Serial (COM3) → Flask ML</span>
+        </div>
+    </footer>
+
+    <!-- Client Script -->
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
